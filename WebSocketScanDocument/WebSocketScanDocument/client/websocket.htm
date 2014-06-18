@@ -1,0 +1,165 @@
+﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+    <head>
+        <title>Test</title>
+        <script type="text/javascript" src="jquery.js"></script>
+        <script type="text/javascript">
+            var noSupportMessage = "Your browser cannot support WebSocket!";
+            var ws;
+            var imageWidth, imageHeight;
+
+            function appendMessage(message) {
+                $('body').append(message);
+            }
+
+            function connectSocketServer() {
+                var support = "MozWebSocket" in window ? 'MozWebSocket' : ("WebSocket" in window ? 'WebSocket' : null);
+
+                if (support == null) {
+                    appendMessage("* " + noSupportMessage + "<br/>");
+                    return;
+                }
+
+                appendMessage("* Connecting to server ..<br/>");
+                // create a new websocket and connect
+                //ws = new window[support]('ws://localhost:2012/');
+                ws = new window[support]('ws://192.168.8.84:2012/');
+                ws.binaryType = "arraybuffer";
+
+                // when data is comming from the server, this metod is called
+                ws.onmessage = function (evt) {
+                    var data = evt.data;
+                    if (!data)
+                        return;
+ 
+                    if (data instanceof ArrayBuffer) {
+                        drawImage(evt.data);
+                        $('#sendButton').attr("disabled", "");
+                    }
+                    else {
+                        var json = JSON.parse(data);
+                        var jValue;
+                        for (jProperty in json) {
+                            jValue = json[jProperty];
+                            switch (jProperty) {
+                                case "Sources":
+                                    showSources(jValue);
+                                    break;
+                                case "Draw":
+                                    var w = jValue[0];
+                                    var h = jValue[1];
+                                    imageWidth = parseInt(w);
+                                    imageHeight = parseInt(h);
+                                    break;
+                            }
+                            break;
+                        }
+                    }
+                };
+
+                // when the connection is established, this method is called
+                ws.onopen = function () {
+                    appendMessage('* Connection open<br/>');
+                    $('#messageInput').attr("disabled", "");
+                    $('#sendButton').attr("disabled", "");
+                    $('#connectButton').attr("disabled", "disabled");
+                    $('#disconnectButton').attr("disabled", "");
+                };
+
+                // when the connection is closed, this method is called
+                ws.onclose = function () {
+                    appendMessage('* Connection closed<br/>');
+                    $('#messageInput').attr("disabled", "disabled");
+                    $('#sendButton').attr("disabled", "disabled");
+                    $('#connectButton').attr("disabled", "");
+                    $('#disconnectButton').attr("disabled", "disabled");
+                }
+            }
+
+            function sendMessage() {
+                if (ws) {
+                    var sources = document.querySelectorAll('option');
+                    for (var i in sources) {
+                        if (sources[i].selected) {
+                            ws.send(i + "");
+                            $('#sendButton').attr("disabled", "disabled");
+                            break;
+                        };
+                    }
+                }
+            }
+
+            function disconnectWebSocket() {
+                if (ws) {
+                    ws.close();
+                }
+            }
+
+            function connectWebSocket() {
+                connectSocketServer();
+            }
+
+            window.onload = function () {
+                $('#messageInput').attr("disabled", "disabled");
+                $('#sendButton').attr("disabled", "disabled");
+                $('#disconnectButton').attr("disabled", "disabled");
+            }
+
+            function drawImage(data) {
+                
+                var byteArray = new Uint8Array(data);
+
+                var canvas = document.createElement('canvas');
+                canvas.width = imageWidth;
+                canvas.height = imageHeight;
+                var ctx = canvas.getContext('2d');
+
+                var imageData = ctx.getImageData(0, 0, imageWidth, imageHeight); // total size: imageWidth * imageHeight * 4; color format BGRA
+                var dataLen = imageData.data.length;
+                for (var i = 0; i < dataLen; i++)
+                {
+                    imageData.data[i] = byteArray[i];
+                }
+                ctx.putImageData(imageData, 0, 0);
+
+                // create a new element and add it to div
+                var image = document.createElement('img');
+                image.width = imageWidth;
+                image.height = imageHeight;
+                image.src = canvas.toDataURL();
+
+                var div = document.getElementById('img');
+                div.appendChild(image);
+            }
+    
+    </script>
+    </head>
+    <body>
+        <input type="button" id="connectButton" value="Connect" onclick="connectWebSocket()"/> 
+        <input type="button" id="disconnectButton" value="Disconnect" onclick="disconnectWebSocket()"/> 
+        <input type="button" id="sendButton" value="Scan" onclick="sendMessage()"/> <br />
+        <select id="sources"></select><br>
+        <div id="img"></div>
+
+        <script>
+            function showSources(values) {
+                var sources = document.getElementById('sources');
+                var option;
+
+                var count = values.length;
+                if (count == 0) {
+                    option = document.createElement('option');
+                    option.text = "N/A";
+                    sources.appendChild(option);
+                }
+                else {
+                    for (var i = 0; i < 3; i++) {
+                        option = document.createElement('option');
+                        option.text = values[i];
+                        sources.appendChild(option);
+                    };
+                }
+            }
+        </script>
+    </body>
+</html>
