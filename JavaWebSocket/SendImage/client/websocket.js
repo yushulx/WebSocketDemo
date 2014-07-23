@@ -6,9 +6,7 @@ ws.onopen = function() {
     ws.send("I'm client");
 };
 
-ws.onmessage = function (evt) {
-    alert("Message: " + evt.data);
-    
+ws.onmessage = function (evt) { 
     var bytes = new Uint8Array(evt.data);
     var data = "";
     var len = bytes.byteLength;
@@ -25,4 +23,9 @@ ws.onclose = function() {
 
 ws.onerror = function(err) {
     alert("Error: " + err);
+};
+
+var button = document.getElementById("button");
+button.onclick = function() {
+	ws.send("image");
 };
